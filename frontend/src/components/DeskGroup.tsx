@@ -8,6 +8,7 @@ import {
   Warning,
   Circle,
   DotsSixVertical,
+  UserPlus,
 } from '@phosphor-icons/react';
 import { GuestCard } from './GuestCard';
 import type { Guest } from '@/lib/supabase';
@@ -18,6 +19,7 @@ interface DeskGroupProps {
   onGuestClick: (guest: Guest) => void;
   onToggleAttendance: (guest: Guest) => void;
   onReorderGuests?: (deskNo: number, reorderedGuests: Guest[]) => void;
+  onAddGuest?: (deskNo: number) => void;
   viewMode: 'card' | 'table';
   isExpanded: boolean;
   onToggleExpand: () => void;
@@ -29,6 +31,7 @@ export function DeskGroup({
   onGuestClick,
   onToggleAttendance,
   onReorderGuests,
+  onAddGuest,
   viewMode,
   isExpanded,
   onToggleExpand,
@@ -149,7 +152,24 @@ export function DeskGroup({
       {/* Guests Content */}
       {isExpanded && (
         <div className="p-3 border-t border-slate-100">
-          {viewMode === 'card' ? (
+          {guests.length === 0 ? (
+            /* Empty Desk UI */
+            <div className="flex flex-col items-center justify-center py-6 text-center">
+              <div className="p-3 rounded-full bg-slate-100 mb-3">
+                <Users weight="duotone" className="w-6 h-6 text-slate-400" />
+              </div>
+              <p className="text-sm text-slate-500 mb-3">Bu masa henüz boş</p>
+              {onAddGuest && (
+                <button
+                  onClick={() => onAddGuest(deskNo)}
+                  className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors"
+                >
+                  <UserPlus weight="bold" className="w-4 h-4" />
+                  Misafir Ekle
+                </button>
+              )}
+            </div>
+          ) : viewMode === 'card' ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
               {guests.map((guest) => (
                 <GuestCard

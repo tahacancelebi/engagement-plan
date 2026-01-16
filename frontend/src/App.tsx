@@ -29,6 +29,7 @@ import {
   updateGuestInDB,
   deleteGuestFromDB,
   updateGuestOrderInDB,
+  createDeskInDB,
 } from '@/lib/supabase';
 import { turkishIncludes } from '@/lib/utils';
 import { DeskGroup } from '@/components/DeskGroup';
@@ -45,8 +46,9 @@ import { Button } from '@/components/ui/button';
 import guestsData from '../db.json';
 import './App.css';
 
-// Optional: Import a logo image
-// import logoImage from '@/assets/logo.png';
+// Import logo and watermark images from assets
+import logoImage from '@/assets/nisan_logo.png';
+import disqetLogo from '@/assets/disqetNew.svg?url';
 
 type ViewMode = 'card' | 'table' | 'map';
 type FilterMode = 'all' | 'attended' | 'pending' | 'has_notes';
@@ -54,8 +56,8 @@ type FilterMode = 'all' | 'attended' | 'pending' | 'has_notes';
 // Local storage keys for guest order
 const GUEST_ORDER_KEY = 'engagement_guest_order';
 
-// Background image for floor plan (optional - can be a URL or imported image)
-const FLOOR_PLAN_BACKGROUND = ''; // Set your image URL here if needed
+// Background watermark image for floor plan (use imported image or leave empty)
+const FLOOR_PLAN_BACKGROUND = disqetLogo;
 
 function getLocalGuestOrder(): Record<number, number[]> {
   try {
@@ -89,6 +91,9 @@ function App() {
 
   // Dialog states
   const [createGuestDialogOpen, setCreateGuestDialogOpen] = useState(false);
+  const [preSelectedDeskNo, setPreSelectedDeskNo] = useState<number | null>(
+    null,
+  );
   const [createDeskDialogOpen, setCreateDeskDialogOpen] = useState(false);
   const [createFixedObjectDialogOpen, setCreateFixedObjectDialogOpen] =
     useState(false);
@@ -175,19 +180,24 @@ function App() {
     };
   }, [guests]);
 
-  // Get unique desk numbers for table positions
-  const deskNumbers = useMemo(
+  // Get unique desk numbers from guests (for grouping)
+  const guestDeskNumbers = useMemo(
     () =>
       Array.from(new Set(guests.map((g) => g.desk_no))).sort((a, b) => a - b),
     [guests],
   );
 
-  // Table positions for floor plan
+  // Table positions for floor plan - also loads all desks from Supabase
   const {
     positions: tablePositions,
     updatePosition,
     resetPositions,
-  } = useTablePositions(deskNumbers);
+    reloadDesks,
+    allDeskNumbers,
+  } = useTablePositions(guestDeskNumbers);
+
+  // Combined desk numbers (from guests + from Supabase desks table)
+  const deskNumbers = allDeskNumbers;
 
   // Find ALL highlighted desks based on search query
   const highlightedDeskNos = useMemo(() => {
@@ -241,23 +251,41 @@ function App() {
       groups.set(guest.desk_no, [...existing, guest]);
     });
 
-    // Apply custom order for each desk
+    // Apply sorting for each desk - prefer display_order from guest, then localStorage
     groups.forEach((deskGuests, deskNo) => {
-      const order = guestOrder[deskNo];
-      if (order && order.length > 0) {
-        deskGuests.sort((a, b) => {
-          const indexA = order.indexOf(a.id);
-          const indexB = order.indexOf(b.id);
-          if (indexA === -1 && indexB === -1) return 0;
-          if (indexA === -1) return 1;
-          if (indexB === -1) return -1;
-          return indexA - indexB;
-        });
+      const localOrder = guestOrder[deskNo];
+
+      deskGuests.sort((a, b) => {
+        // First try display_order from guest object (synced from state)
+        const orderA = a.display_order ?? 999;
+        const orderB = b.display_order ?? 999;
+
+        if (orderA !== orderB) {
+          return orderA - orderB;
+        }
+
+        // Fall back to localStorage order
+        if (localOrder && localOrder.length > 0) {
+          const indexA = localOrder.indexOf(a.id);
+          const indexB = localOrder.indexOf(b.id);
+          if (indexA !== -1 && indexB !== -1) {
+            return indexA - indexB;
+          }
+        }
+
+        return 0;
+      });
+    });
+
+    // Include empty desks from deskNumbers (desks without guests)
+    deskNumbers.forEach((deskNo) => {
+      if (!groups.has(deskNo)) {
+        groups.set(deskNo, []);
       }
     });
 
     return Array.from(groups.entries()).sort((a, b) => a[0] - b[0]);
-  }, [filteredGuests]);
+  }, [filteredGuests, deskNumbers]);
 
   // Auto-expand desks when searching
   useEffect(() => {
@@ -349,17 +377,21 @@ function App() {
     setSelectedGuest(guest);
   };
 
-  // Handle split guest - creates individual guests from a multi-person invitation
-  const handleSplitGuest = async (guest: Guest) => {
+  // Handle split guest - creates individual guests from a multi-person invitation with custom names
+  const handleSplitGuest = async (guest: Guest, customNames?: string[]) => {
     if (guest.person_count <= 1) return;
 
-    const baseName = guest.full_name;
     const newGuests: Guest[] = [];
 
     // Create individual guests
     for (let i = 0; i < guest.person_count; i++) {
+      const guestName =
+        customNames && customNames[i]
+          ? customNames[i]
+          : `${guest.full_name} - Kişi ${i + 1}`;
+
       const newGuest: Omit<Guest, 'id'> = {
-        full_name: `${baseName} - Kişi ${i + 1}`,
+        full_name: guestName,
         person_count: 1,
         desk_no: guest.desk_no,
         gift_count: i === 0 ? guest.gift_count : 0, // First person gets the gifts
@@ -392,10 +424,23 @@ function App() {
     ]);
   };
 
+  // Handle rename guest
+  const handleRenameGuest = async (id: number, newName: string) => {
+    // Optimistic update
+    setGuests((prev) =>
+      prev.map((g) => (g.id === id ? { ...g, full_name: newName } : g)),
+    );
+
+    // Update in Supabase
+    if (supabase && !isOffline) {
+      await updateGuestInDB(id, { full_name: newName });
+    }
+  };
+
   // Handle reorder guests within a desk
   const handleReorderGuests = useCallback(
     (deskNo: number, reorderedGuests: Guest[]) => {
-      // Save the new order
+      // Save the new order to localStorage
       const currentOrder = getLocalGuestOrder();
       currentOrder[deskNo] = reorderedGuests.map((g) => g.id);
       saveLocalGuestOrder(currentOrder);
@@ -408,8 +453,17 @@ function App() {
         );
       }
 
-      // Force re-render by updating guests
-      setGuests((prev) => [...prev]);
+      // Optimistically update guests with new display_order values
+      setGuests((prev) => {
+        const newGuestIds = reorderedGuests.map((g) => g.id);
+        return prev.map((g) => {
+          const newIndex = newGuestIds.indexOf(g.id);
+          if (newIndex !== -1) {
+            return { ...g, display_order: newIndex };
+          }
+          return g;
+        });
+      });
     },
     [isOffline],
   );
@@ -443,8 +497,16 @@ function App() {
         updateGuestOrderInDB(deskNo, newOrder);
       }
 
-      // Force re-render
-      setGuests((prev) => [...prev]);
+      // Optimistically update display_order on guests
+      setGuests((prev) =>
+        prev.map((g) => {
+          const idx = newOrder.indexOf(g.id);
+          if (idx !== -1) {
+            return { ...g, display_order: idx };
+          }
+          return g;
+        }),
+      );
     },
     [guests, isOffline],
   );
@@ -490,11 +552,25 @@ function App() {
     setExpandedDesks((prev) => new Set([...prev, guestData.deskNo]));
   };
 
-  // Create new desk
+  // Create new desk in Supabase
   const handleCreateDesk = async (deskNo: number) => {
     // Add the desk to expanded desks
     setExpandedDesks((prev) => new Set([...prev, deskNo]));
-    // The desk will appear when guests are added
+
+    // Create desk in Supabase
+    if (supabase && !isOffline) {
+      // Calculate a position for the new desk (grid layout)
+      const existingCount = deskNumbers.length;
+      const col = existingCount % 4;
+      const row = Math.floor(existingCount / 4);
+      const x = 150 + col * 200;
+      const y = 150 + row * 200;
+
+      await createDeskInDB(deskNo, x, y);
+
+      // Reload desks from Supabase to update the UI
+      await reloadDesks();
+    }
   };
 
   // Toggle desk expansion
@@ -543,15 +619,17 @@ function App() {
   return (
     <div className="min-h-screen bg-slate-50">
       {/* Header - Mobile First */}
-      <header className="sticky top-0 z-50 border-b border-slate-200 bg-white/95 backdrop-blur-sm">
+      <header className="sticky top-0 z-50 border-b border-slate-200 bg-[#f9f7f4]">
         <div className="max-w-5xl mx-auto px-3 sm:px-4 py-2.5 sm:py-3">
           <div className="flex items-center justify-between gap-2 sm:gap-4">
             {/* Logo & Title */}
-            <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
-              {/* Logo placeholder - replace with your image */}
-              <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-gradient-to-br from-rose-400 to-pink-500 flex items-center justify-center text-white font-bold text-lg shadow-sm">
-                S&Ö
-              </div>
+            <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+              {/* Logo from assets */}
+              <img
+                src={logoImage}
+                alt="Logo"
+                className=" h-auto sm:w-11 sm:h-11 object-fit"
+              />
               {/* Title - hidden on mobile */}
               <div className="hidden sm:block">
                 <h1 className="text-lg sm:text-xl font-bold text-slate-800 tracking-tight leading-tight">
@@ -599,7 +677,7 @@ function App() {
             </div>
 
             {/* View Mode Toggle */}
-            <div className="flex items-center rounded-xl border border-slate-200 bg-slate-50 p-1 gap-0.5 flex-shrink-0">
+            <div className="flex items-center rounded-xl border border-slate-200 bg-slate-50 p-1 gap-0.5 shrink-0">
               <button
                 onClick={() => setViewMode('card')}
                 className={`p-2 rounded-lg transition-all ${
@@ -685,6 +763,7 @@ function App() {
                   setSelectedGuest(guest);
                   setDialogOpen(true);
                 }}
+                onReorderGuests={handleReorderGuests}
                 fixedObjects={fixedObjects}
                 onUpdateFixedObject={updateFixedObject}
                 onDeleteFixedObject={deleteFixedObject}
@@ -822,6 +901,10 @@ function App() {
                         onGuestClick={handleGuestClick}
                         onToggleAttendance={handleToggleAttendance}
                         onReorderGuests={handleReorderGuests}
+                        onAddGuest={(deskNo) => {
+                          setPreSelectedDeskNo(deskNo);
+                          setCreateGuestDialogOpen(true);
+                        }}
                         viewMode={viewMode as 'card' | 'table'}
                         isExpanded={expandedDesks.has(deskNo)}
                         onToggleExpand={() => toggleDesk(deskNo)}
@@ -847,15 +930,20 @@ function App() {
         onReorderGuest={handleReorderGuest}
         onSelectGuest={handleSelectGuest}
         onSplitGuest={handleSplitGuest}
+        onRenameGuest={handleRenameGuest}
         existingDeskNumbers={deskNumbers.length > 0 ? deskNumbers : [1]}
       />
 
       {/* Create Guest Dialog */}
       <CreateGuestDialog
         open={createGuestDialogOpen}
-        onOpenChange={setCreateGuestDialogOpen}
+        onOpenChange={(open) => {
+          setCreateGuestDialogOpen(open);
+          if (!open) setPreSelectedDeskNo(null);
+        }}
         onCreateGuest={handleCreateGuest}
         existingDeskNumbers={deskNumbers.length > 0 ? deskNumbers : [1]}
+        defaultDeskNo={preSelectedDeskNo ?? undefined}
       />
 
       {/* Create Desk Dialog */}

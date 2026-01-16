@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect, useCallback, useMemo } from 'react';
+import { useRef, useState, useEffect, useCallback } from 'react';
 import { motion, useMotionValue } from 'framer-motion';
 import { ArrowClockwise, Trash, PencilSimple } from '@phosphor-icons/react';
 
@@ -21,16 +21,6 @@ interface FixedObjectProps {
   onEditName: (id: string, name: string) => void;
 }
 
-// Resize handle styles generator
-function getHandlePosition(corner: string): React.CSSProperties {
-  const styles: React.CSSProperties = { position: 'absolute' };
-  if (corner.includes('n')) styles.top = -10;
-  if (corner.includes('s')) styles.bottom = -10;
-  if (corner.includes('w')) styles.left = -10;
-  if (corner.includes('e')) styles.right = -10;
-  return styles;
-}
-
 export function FixedObject({
   object,
   isDragEnabled,
@@ -45,7 +35,6 @@ export function FixedObject({
   const [editName, setEditName] = useState(object.name);
   const [activeCorner, setActiveCorner] = useState<string | null>(null);
   const [showControls, setShowControls] = useState(false);
-  const objectRef = useRef<HTMLDivElement>(null);
 
   // Update motion values when position prop changes
   useEffect(() => {
@@ -78,7 +67,7 @@ export function FixedObject({
     onDelete(object.id);
   };
 
-  // Unified resize handler for both mouse and touch
+  // Resize handler - simpler version that works with rotated corners
   const handleResizeStart = useCallback(
     (corner: string, clientX: number, clientY: number) => {
       setActiveCorner(corner);
@@ -99,6 +88,7 @@ export function FixedObject({
         let newX = startObjX;
         let newY = startObjY;
 
+        // Simple resize based on corner
         if (corner.includes('e')) newWidth = startWidth + dx;
         if (corner.includes('w')) {
           newWidth = startWidth - dx;
@@ -192,15 +182,11 @@ export function FixedObject({
     }
   };
 
-  const renderShape = () => {
-    const transform = `rotate(${object.rotation}deg)`;
-
+  // Render shape content
+  const renderShapeContent = () => {
     if (object.type === 'triangle') {
       return (
-        <div
-          className="w-full h-full flex items-center justify-center relative"
-          style={{ transform }}
-        >
+        <div className="w-full h-full flex items-center justify-center relative">
           <svg
             viewBox="0 0 100 100"
             className="w-full h-full"
@@ -213,10 +199,7 @@ export function FixedObject({
               strokeWidth="3"
             />
           </svg>
-          <div
-            className="absolute inset-0 flex items-center justify-center pointer-events-none"
-            style={{ transform: `rotate(-${object.rotation}deg)` }}
-          >
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
             <span className="text-xs font-medium text-green-700 text-center px-2 select-none line-clamp-2">
               {object.name}
             </span>
@@ -226,16 +209,11 @@ export function FixedObject({
     }
 
     return (
-      <div
-        className="w-full h-full rounded-md bg-blue-50 border-2 border-blue-300 flex items-center justify-center relative"
-        style={{ transform }}
-      >
+      <div className="w-full h-full rounded-md bg-blue-50 border-2 border-blue-300 flex items-center justify-center relative">
         <div
           className="absolute inset-0 flex items-center justify-center pointer-events-none p-2"
           style={{
-            transform: shouldRotateText
-              ? 'rotate(90deg)'
-              : `rotate(-${object.rotation}deg)`,
+            transform: shouldRotateText ? 'rotate(90deg)' : 'none',
           }}
         >
           <span className="text-xs font-medium text-blue-700 text-center select-none line-clamp-2">
@@ -246,21 +224,9 @@ export function FixedObject({
     );
   };
 
-  // Pre-calculate handle positions
-  const handlePositions = useMemo(
-    () => ({
-      nw: getHandlePosition('nw'),
-      ne: getHandlePosition('ne'),
-      sw: getHandlePosition('sw'),
-      se: getHandlePosition('se'),
-    }),
-    [],
-  );
-
   return (
     <>
       <motion.div
-        ref={objectRef}
         drag={isDragEnabled && !activeCorner}
         dragMomentum={false}
         dragElastic={0}
@@ -288,84 +254,93 @@ export function FixedObject({
           width: object.width,
           height: object.height,
           zIndex: activeCorner ? 100 : 10,
+          transform: `rotate(${object.rotation}deg)`,
+          transformOrigin: 'center center',
         }}
       >
-        {renderShape()}
+        {/* Shape content */}
+        {renderShapeContent()}
 
-        {/* Controls - visible in edit mode */}
+        {/* Resize handles - INSIDE the rotated container so they rotate with object */}
         {isDragEnabled && (
           <>
-            {/* Action buttons */}
-            <div
-              className="absolute -top-12 left-1/2 -translate-x-1/2 flex items-center gap-2 transition-opacity pointer-events-auto"
-              style={{ opacity: showControls || activeCorner ? 1 : 0.7 }}
-            >
-              <button
-                onClick={handleRotate}
-                onTouchEnd={handleRotate}
-                className="p-2.5 sm:p-1.5 bg-white rounded-lg shadow-md border border-slate-200 hover:bg-slate-50 active:bg-slate-100 transition-colors touch-none"
-                title="90° Döndür"
-              >
-                <ArrowClockwise
-                  weight="bold"
-                  className="w-5 h-5 sm:w-3.5 sm:h-3.5 text-slate-600"
-                />
-              </button>
-              <button
-                onClick={() => setIsEditing(true)}
-                className="p-2.5 sm:p-1.5 bg-white rounded-lg shadow-md border border-slate-200 hover:bg-slate-50 active:bg-slate-100 transition-colors touch-none"
-                title="İsim Düzenle"
-              >
-                <PencilSimple
-                  weight="bold"
-                  className="w-5 h-5 sm:w-3.5 sm:h-3.5 text-slate-600"
-                />
-              </button>
-              <button
-                onClick={handleDeleteClick}
-                onTouchEnd={handleDeleteClick}
-                className="p-2.5 sm:p-1.5 bg-white rounded-lg shadow-md border border-rose-200 hover:bg-rose-50 active:bg-rose-100 transition-colors touch-none"
-                title="Sil"
-              >
-                <Trash
-                  weight="bold"
-                  className="w-5 h-5 sm:w-3.5 sm:h-3.5 text-rose-600"
-                />
-              </button>
-            </div>
-
-            {/* Resize handles - inline instead of component */}
+            {/* NW corner */}
             <div
               onMouseDown={(e) => handleMouseDown(e, 'nw')}
               onTouchStart={(e) => handleTouchStartCorner(e, 'nw')}
-              className={`w-6 h-6 sm:w-4 sm:h-4 bg-indigo-500 border-2 border-white rounded-full shadow-md 
-                                ${activeCorner === 'nw' ? 'scale-125' : ''} transition-transform touch-none cursor-nw-resize`}
-              style={handlePositions.nw}
+              className={`absolute -top-2 -left-2 w-5 h-5 sm:w-4 sm:h-4 bg-indigo-500 border-2 border-white rounded-full shadow-md 
+                ${activeCorner === 'nw' ? 'scale-125' : ''} transition-transform touch-none cursor-nw-resize hover:scale-110`}
             />
+            {/* NE corner */}
             <div
               onMouseDown={(e) => handleMouseDown(e, 'ne')}
               onTouchStart={(e) => handleTouchStartCorner(e, 'ne')}
-              className={`w-6 h-6 sm:w-4 sm:h-4 bg-indigo-500 border-2 border-white rounded-full shadow-md 
-                                ${activeCorner === 'ne' ? 'scale-125' : ''} transition-transform touch-none cursor-ne-resize`}
-              style={handlePositions.ne}
+              className={`absolute -top-2 -right-2 w-5 h-5 sm:w-4 sm:h-4 bg-indigo-500 border-2 border-white rounded-full shadow-md 
+                ${activeCorner === 'ne' ? 'scale-125' : ''} transition-transform touch-none cursor-ne-resize hover:scale-110`}
             />
+            {/* SW corner */}
             <div
               onMouseDown={(e) => handleMouseDown(e, 'sw')}
               onTouchStart={(e) => handleTouchStartCorner(e, 'sw')}
-              className={`w-6 h-6 sm:w-4 sm:h-4 bg-indigo-500 border-2 border-white rounded-full shadow-md 
-                                ${activeCorner === 'sw' ? 'scale-125' : ''} transition-transform touch-none cursor-sw-resize`}
-              style={handlePositions.sw}
+              className={`absolute -bottom-2 -left-2 w-5 h-5 sm:w-4 sm:h-4 bg-indigo-500 border-2 border-white rounded-full shadow-md 
+                ${activeCorner === 'sw' ? 'scale-125' : ''} transition-transform touch-none cursor-sw-resize hover:scale-110`}
             />
+            {/* SE corner */}
             <div
               onMouseDown={(e) => handleMouseDown(e, 'se')}
               onTouchStart={(e) => handleTouchStartCorner(e, 'se')}
-              className={`w-6 h-6 sm:w-4 sm:h-4 bg-indigo-500 border-2 border-white rounded-full shadow-md 
-                                ${activeCorner === 'se' ? 'scale-125' : ''} transition-transform touch-none cursor-se-resize`}
-              style={handlePositions.se}
+              className={`absolute -bottom-2 -right-2 w-5 h-5 sm:w-4 sm:h-4 bg-indigo-500 border-2 border-white rounded-full shadow-md 
+                ${activeCorner === 'se' ? 'scale-125' : ''} transition-transform touch-none cursor-se-resize hover:scale-110`}
             />
           </>
         )}
       </motion.div>
+
+      {/* Action buttons - positioned OUTSIDE and above the object */}
+      {isDragEnabled && (
+        <div
+          className="absolute flex items-center gap-2 transition-opacity pointer-events-auto z-50"
+          style={{
+            left: object.x + object.width / 2,
+            top: object.y - 48,
+            transform: 'translateX(-50%)',
+            opacity: showControls || activeCorner ? 1 : 0.7,
+          }}
+        >
+          <button
+            onClick={handleRotate}
+            onTouchEnd={handleRotate}
+            className="p-2 sm:p-1.5 bg-white rounded-lg shadow-md border border-slate-200 hover:bg-slate-50 active:bg-slate-100 transition-colors touch-none"
+            title="90° Döndür"
+          >
+            <ArrowClockwise
+              weight="bold"
+              className="w-4 h-4 sm:w-3.5 sm:h-3.5 text-slate-600"
+            />
+          </button>
+          <button
+            onClick={() => setIsEditing(true)}
+            className="p-2 sm:p-1.5 bg-white rounded-lg shadow-md border border-slate-200 hover:bg-slate-50 active:bg-slate-100 transition-colors touch-none"
+            title="İsim Düzenle"
+          >
+            <PencilSimple
+              weight="bold"
+              className="w-4 h-4 sm:w-3.5 sm:h-3.5 text-slate-600"
+            />
+          </button>
+          <button
+            onClick={handleDeleteClick}
+            onTouchEnd={handleDeleteClick}
+            className="p-2 sm:p-1.5 bg-white rounded-lg shadow-md border border-rose-200 hover:bg-rose-50 active:bg-rose-100 transition-colors touch-none"
+            title="Sil"
+          >
+            <Trash
+              weight="bold"
+              className="w-4 h-4 sm:w-3.5 sm:h-3.5 text-rose-600"
+            />
+          </button>
+        </div>
+      )}
 
       {/* Name edit modal */}
       {isEditing && (

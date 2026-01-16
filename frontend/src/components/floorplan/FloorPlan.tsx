@@ -38,6 +38,7 @@ interface FloorPlanProps {
   highlightedDeskNos: number[];
   onToggleAttendance: (guest: Guest) => void;
   onGuestClick: (guest: Guest) => void;
+  onReorderGuests?: (deskNo: number, guests: Guest[]) => void;
   // Fixed objects
   fixedObjects?: FixedObjectData[];
   onUpdateFixedObject?: (object: FixedObjectData) => void;
@@ -63,6 +64,7 @@ export const FloorPlan = forwardRef<FloorPlanRef, FloorPlanProps>(
       highlightedDeskNos,
       onToggleAttendance,
       onGuestClick,
+      onReorderGuests,
       fixedObjects = [],
       onUpdateFixedObject,
       onDeleteFixedObject,
@@ -161,16 +163,13 @@ export const FloorPlan = forwardRef<FloorPlanRef, FloorPlanProps>(
       <div className="relative w-full h-[calc(100vh-180px)] bg-slate-100 rounded-xl border border-slate-200 overflow-hidden">
         {/* Fixed Watermark Background - doesn't move with zoom */}
         {backgroundImage && (
-          <div
-            className="absolute inset-0 z-0 pointer-events-none"
-            style={{
-              backgroundImage: `url(${backgroundImage})`,
-              backgroundSize: 'cover',
-              backgroundPosition: 'center',
-              backgroundRepeat: 'no-repeat',
-              opacity: 0.08,
-            }}
-          />
+          <div className="absolute inset-0 z-0 pointer-events-none flex items-center justify-center">
+            <img
+              src={backgroundImage}
+              alt=""
+              className="max-w-[90%] max-h-[90%] object-contain opacity-[0.04]"
+            />
+          </div>
         )}
 
         {/* Control buttons */}
@@ -349,6 +348,7 @@ export const FloorPlan = forwardRef<FloorPlanRef, FloorPlanProps>(
           }}
           onToggleAttendance={onToggleAttendance}
           onGuestClick={onGuestClick}
+          onReorderGuests={onReorderGuests}
         />
       </div>
     );

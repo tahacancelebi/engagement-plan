@@ -8,6 +8,7 @@ import {
   ArrowDown,
   Scissors,
   Users,
+  PencilSimple,
 } from '@phosphor-icons/react';
 import {
   Dialog,
@@ -44,7 +45,8 @@ interface EditGuestDialogProps {
     direction: 'up' | 'down',
   ) => void;
   onSelectGuest?: (guest: Guest) => void;
-  onSplitGuest?: (guest: Guest) => Promise<void>;
+  onSplitGuest?: (guest: Guest, newNames: string[]) => Promise<void>;
+  onRenameGuest?: (id: number, newName: string) => Promise<void>;
   existingDeskNumbers: number[];
 }
 
@@ -59,6 +61,7 @@ export function EditGuestDialog({
   onReorderGuest,
   onSelectGuest,
   onSplitGuest,
+  onRenameGuest,
   existingDeskNumbers,
 }: EditGuestDialogProps) {
   const [description, setDescription] = useState('');
@@ -66,11 +69,14 @@ export function EditGuestDialog({
   const [deskNo, setDeskNo] = useState(1);
   const [personCount, setPersonCount] = useState(1);
   const [giftCount, setGiftCount] = useState(1);
+  const [fullName, setFullName] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isSplitting, setIsSplitting] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showSplitConfirm, setShowSplitConfirm] = useState(false);
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [splitNames, setSplitNames] = useState<string[]>([]);
 
   useEffect(() => {
     if (guest) {
@@ -79,8 +85,17 @@ export function EditGuestDialog({
       setDeskNo(guest.desk_no);
       setPersonCount(guest.person_count);
       setGiftCount(guest.gift_count);
+      setFullName(guest.full_name);
       setShowDeleteConfirm(false);
       setShowSplitConfirm(false);
+      setIsEditingName(false);
+
+      // Initialize split names
+      const names: string[] = [];
+      for (let i = 0; i < guest.person_count; i++) {
+        names.push(`${guest.full_name} - Kişi ${i + 1}`);
+      }
+      setSplitNames(names);
     }
   }, [guest]);
 
@@ -88,6 +103,11 @@ export function EditGuestDialog({
     if (!guest) return;
     setIsSaving(true);
     try {
+      // Save name change if edited
+      if (fullName !== guest.full_name && onRenameGuest) {
+        await onRenameGuest(guest.id, fullName);
+      }
+
       await onSave(
         guest.id,
         description,
@@ -122,7 +142,7 @@ export function EditGuestDialog({
     if (!guest || !onSplitGuest || guest.person_count <= 1) return;
     setIsSplitting(true);
     try {
-      await onSplitGuest(guest);
+      await onSplitGuest(guest, splitNames);
       onOpenChange(false);
     } catch (error) {
       console.error('Failed to split:', error);
@@ -136,29 +156,11 @@ export function EditGuestDialog({
     setDescription('');
   };
 
-  // Handle clicking on a tablemate badge - save current and switch
-  const handleTablemateClick = async (tablemate: Guest) => {
+  // Handle clicking on a tablemate badge
+  const handleTablemateClick = (tablemate: Guest) => {
     if (!guest || tablemate.id === guest.id) return;
-
-    // Save current guest first
-    setIsSaving(true);
-    try {
-      await onSave(
-        guest.id,
-        description,
-        isAttended,
-        deskNo,
-        personCount,
-        giftCount,
-      );
-      // Then switch to the new guest
-      if (onSelectGuest) {
-        onSelectGuest(tablemate);
-      }
-    } catch (error) {
-      console.error('Failed to save before switching:', error);
-    } finally {
-      setIsSaving(false);
+    if (onSelectGuest) {
+      onSelectGuest(tablemate);
     }
   };
 
@@ -170,14 +172,51 @@ export function EditGuestDialog({
   // Check if guest can be split (has multiple persons)
   const canSplit = guest && guest.person_count > 1;
 
+  // Get guests for the selected desk (for preview when changing desk)
+  const previewGuests =
+    deskNo === guest?.desk_no
+      ? tablemates
+      : allGuests.filter((g) => g.desk_no === deskNo);
+
   if (!guest) return null;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md bg-white border-slate-200 max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-lg bg-white border-slate-200 max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-lg font-semibold text-slate-800">
-            {guest.full_name}
+          <DialogTitle className="text-lg font-semibold text-slate-800 flex items-center gap-2">
+            {isEditingName ? (
+              <Input
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                className="h-8 text-lg font-semibold"
+                autoFocus
+                onBlur={() => setIsEditingName(false)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') setIsEditingName(false);
+                  if (e.key === 'Escape') {
+                    setFullName(guest.full_name);
+                    setIsEditingName(false);
+                  }
+                }}
+              />
+            ) : (
+              <>
+                {fullName}
+                {onRenameGuest && (
+                  <button
+                    onClick={() => setIsEditingName(true)}
+                    className="p-1 hover:bg-slate-100 rounded transition-colors"
+                    title="İsmi Düzenle"
+                  >
+                    <PencilSimple
+                      weight="bold"
+                      className="w-4 h-4 text-slate-400"
+                    />
+                  </button>
+                )}
+              </>
+            )}
           </DialogTitle>
           <DialogDescription className="text-slate-500 text-sm">
             Misafir bilgilerini düzenle
@@ -185,32 +224,28 @@ export function EditGuestDialog({
         </DialogHeader>
 
         <div className="space-y-4 py-3">
-          {/* Tablemates Badges */}
+          {/* Tablemates List (simple, no D&D) */}
           {tablemates.length > 1 && (
             <div>
               <label className="text-xs font-medium text-slate-500 mb-2 block">
-                Masa Arkadaşları
+                Masadaki Misafirler
               </label>
               <div className="flex flex-wrap gap-1.5">
                 {tablemates.map((tablemate) => (
                   <button
                     key={tablemate.id}
                     onClick={() => handleTablemateClick(tablemate)}
-                    disabled={isSaving}
-                    className={`px-2.5 py-1.5 rounded-full text-xs font-medium transition-all ${
+                    className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
                       tablemate.id === guest.id
-                        ? 'bg-indigo-500 text-white'
+                        ? 'bg-indigo-100 text-indigo-700 border-2 border-indigo-300'
                         : tablemate.is_attended
-                          ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'
-                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                          ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200'
+                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200 border border-slate-200'
                     }`}
                   >
                     {tablemate.full_name.split(' ')[0]}
-                    {tablemate.person_count > 1 && (
-                      <span className="ml-1 opacity-70">
-                        +{tablemate.person_count - 1}
-                      </span>
-                    )}
+                    {tablemate.person_count > 1 &&
+                      ` +${tablemate.person_count - 1}`}
                   </button>
                 ))}
               </div>
@@ -275,9 +310,18 @@ export function EditGuestDialog({
             </div>
           </div>
 
+          {/* Table Preview */}
+          <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
+            <MiniTablePreview
+              deskNo={deskNo}
+              guests={previewGuests}
+              highlightGuestId={guest.id}
+            />
+          </div>
+
           {/* Reorder & Split Controls */}
           <div className="flex items-center justify-between">
-            {/* Reorder */}
+            {/* Reorder buttons */}
             {onReorderGuest && tablemates.length > 1 && (
               <div className="flex items-center gap-2">
                 <span className="text-xs text-slate-500">Sıra:</span>
@@ -325,9 +369,9 @@ export function EditGuestDialog({
             )}
           </div>
 
-          {/* Split Confirmation */}
+          {/* Split Confirmation with Name Editing */}
           {showSplitConfirm && (
-            <div className="bg-violet-50 rounded-lg p-3 space-y-2">
+            <div className="bg-violet-50 rounded-lg p-3 space-y-3">
               <div className="flex items-start gap-2">
                 <Users
                   weight="bold"
@@ -335,14 +379,35 @@ export function EditGuestDialog({
                 />
                 <div>
                   <p className="text-sm font-medium text-violet-800">
-                    Davetiyeyi {personCount} kişiye ayır?
+                    Davetiyeyi {personCount} kişiye ayır
                   </p>
                   <p className="text-xs text-violet-600 mt-1">
-                    Her kişi için ayrı davetiye oluşturulacak ve aynı masaya
-                    oturtulacak.
+                    Her kişi için isim belirleyin:
                   </p>
                 </div>
               </div>
+
+              {/* Name inputs for each person */}
+              <div className="space-y-2">
+                {splitNames.map((name, index) => (
+                  <div key={index} className="flex items-center gap-2">
+                    <span className="text-xs text-violet-500 w-6">
+                      {index + 1}.
+                    </span>
+                    <Input
+                      value={name}
+                      onChange={(e) => {
+                        const newNames = [...splitNames];
+                        newNames[index] = e.target.value;
+                        setSplitNames(newNames);
+                      }}
+                      className="h-8 text-sm bg-white"
+                      placeholder={`Kişi ${index + 1} ismi`}
+                    />
+                  </div>
+                ))}
+              </div>
+
               <div className="flex gap-2">
                 <Button
                   variant="ghost"
@@ -355,7 +420,7 @@ export function EditGuestDialog({
                 <Button
                   className="flex-1 bg-violet-600 hover:bg-violet-700 text-white"
                   onClick={handleSplit}
-                  disabled={isSplitting}
+                  disabled={isSplitting || splitNames.some((n) => !n.trim())}
                 >
                   {isSplitting ? (
                     <SpinnerGap
@@ -372,19 +437,6 @@ export function EditGuestDialog({
               </div>
             </div>
           )}
-
-          {/* Table Preview */}
-          <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
-            <MiniTablePreview
-              deskNo={deskNo}
-              guests={
-                deskNo === guest.desk_no
-                  ? tablemates
-                  : allGuests.filter((g) => g.desk_no === deskNo)
-              }
-              highlightGuestId={guest.id}
-            />
-          </div>
 
           {/* Attendance Toggle */}
           <div>

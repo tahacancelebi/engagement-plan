@@ -321,3 +321,178 @@ export async function updateGuestOrderInDB(
     return false;
   }
 }
+
+// =====================================================
+// DESK MANAGEMENT API
+// =====================================================
+
+// Desk type
+export interface Desk {
+  id: number;
+  desk_no: number;
+  name: string | null;
+  capacity: number;
+  x: number;
+  y: number;
+}
+
+// Load all desks from Supabase
+export async function loadDesksFromDB(): Promise<Desk[]> {
+  if (!supabase) return [];
+
+  try {
+    const { data, error } = await supabase
+      .from('desks')
+      .select('*')
+      .order('desk_no', { ascending: true });
+
+    if (error) {
+      console.error('Failed to load desks:', error);
+      return [];
+    }
+
+    return data || [];
+  } catch (e) {
+    console.error('Error loading desks:', e);
+    return [];
+  }
+}
+
+// Create a new desk in Supabase
+export async function createDeskInDB(
+  deskNo: number,
+  x: number = 200,
+  y: number = 200,
+  name: string | null = null,
+): Promise<Desk | null> {
+  if (!supabase) return null;
+
+  try {
+    const { data, error } = await supabase
+      .from('desks')
+      .insert({
+        desk_no: deskNo,
+        x,
+        y,
+        name,
+        capacity: 10,
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Failed to create desk:', error);
+      return null;
+    }
+
+    return data;
+  } catch (e) {
+    console.error('Error creating desk:', e);
+    return null;
+  }
+}
+
+// Update desk position in Supabase
+export async function updateDeskPositionInDB(
+  deskNo: number,
+  x: number,
+  y: number,
+): Promise<boolean> {
+  if (!supabase) return false;
+
+  try {
+    const { error } = await supabase
+      .from('desks')
+      .update({ x, y })
+      .eq('desk_no', deskNo);
+
+    if (error) {
+      console.error('Failed to update desk position:', error);
+      return false;
+    }
+
+    return true;
+  } catch (e) {
+    console.error('Error updating desk position:', e);
+    return false;
+  }
+}
+
+// Update desk info in Supabase
+export async function updateDeskInDB(
+  deskNo: number,
+  updates: Partial<Omit<Desk, 'id' | 'desk_no'>>,
+): Promise<boolean> {
+  if (!supabase) return false;
+
+  try {
+    const { error } = await supabase
+      .from('desks')
+      .update(updates)
+      .eq('desk_no', deskNo);
+
+    if (error) {
+      console.error('Failed to update desk:', error);
+      return false;
+    }
+
+    return true;
+  } catch (e) {
+    console.error('Error updating desk:', e);
+    return false;
+  }
+}
+
+// Delete desk from Supabase (only if empty)
+export async function deleteDeskFromDB(deskNo: number): Promise<boolean> {
+  if (!supabase) return false;
+
+  try {
+    // First check if desk has any guests
+    const { data: guests } = await supabase
+      .from('guests')
+      .select('id')
+      .eq('desk_no', deskNo)
+      .limit(1);
+
+    if (guests && guests.length > 0) {
+      console.error('Cannot delete desk with guests');
+      return false;
+    }
+
+    const { error } = await supabase
+      .from('desks')
+      .delete()
+      .eq('desk_no', deskNo);
+
+    if (error) {
+      console.error('Failed to delete desk:', error);
+      return false;
+    }
+
+    return true;
+  } catch (e) {
+    console.error('Error deleting desk:', e);
+    return false;
+  }
+}
+
+// Get next available desk number
+export async function getNextDeskNumber(): Promise<number> {
+  if (!supabase) return 1;
+
+  try {
+    const { data } = await supabase
+      .from('desks')
+      .select('desk_no')
+      .order('desk_no', { ascending: false })
+      .limit(1);
+
+    if (data && data.length > 0) {
+      return data[0].desk_no + 1;
+    }
+    return 1;
+  } catch {
+    return 1;
+  }
+}

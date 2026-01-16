@@ -21,6 +21,7 @@ interface CreateGuestDialogProps {
     giftCount: number;
   }) => void;
   existingDeskNumbers: number[];
+  defaultDeskNo?: number;
 }
 
 export function CreateGuestDialog({
@@ -28,12 +29,24 @@ export function CreateGuestDialog({
   onOpenChange,
   onCreateGuest,
   existingDeskNumbers,
+  defaultDeskNo,
 }: CreateGuestDialogProps) {
   const [fullName, setFullName] = useState('');
   const [personCount, setPersonCount] = useState(1);
   const [giftCount, setGiftCount] = useState(1);
-  const [deskNo, setDeskNo] = useState(existingDeskNumbers[0] || 1);
+  const [deskNo, setDeskNo] = useState(
+    defaultDeskNo ?? existingDeskNumbers[0] ?? 1,
+  );
   const [isCreating, setIsCreating] = useState(false);
+
+  // Update deskNo when defaultDeskNo changes
+  const [prevDefaultDeskNo, setPrevDefaultDeskNo] = useState(defaultDeskNo);
+  if (defaultDeskNo !== prevDefaultDeskNo) {
+    setPrevDefaultDeskNo(defaultDeskNo);
+    if (defaultDeskNo !== undefined) {
+      setDeskNo(defaultDeskNo);
+    }
+  }
 
   const handleCreate = async () => {
     if (!fullName.trim()) return;
