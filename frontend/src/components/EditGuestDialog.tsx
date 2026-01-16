@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
 import {
-  Users,
-  Gift,
-  Table,
   FloppyDisk,
   SpinnerGap,
   Check,
   Trash,
+  ArrowUp,
+  ArrowDown,
+  Scissors,
+  Users,
 } from '@phosphor-icons/react';
 import {
   Dialog,
@@ -18,38 +19,68 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
 import { MiniTablePreview } from '@/components/floorplan/MiniTablePreview';
 import type { Guest } from '@/lib/supabase';
 
 interface EditGuestDialogProps {
   guest: Guest | null;
   tablemates: Guest[];
+  allGuests: Guest[];
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSave: (
     id: number,
     description: string,
-    isAttended: boolean | null
+    isAttended: boolean | null,
+    deskNo?: number,
+    personCount?: number,
+    giftCount?: number,
   ) => Promise<void>;
+  onDelete?: (id: number) => Promise<void>;
+  onReorderGuest?: (
+    guestId: number,
+    deskNo: number,
+    direction: 'up' | 'down',
+  ) => void;
+  onSelectGuest?: (guest: Guest) => void;
+  onSplitGuest?: (guest: Guest) => Promise<void>;
+  existingDeskNumbers: number[];
 }
 
 export function EditGuestDialog({
   guest,
   tablemates,
+  allGuests,
   open,
   onOpenChange,
   onSave,
+  onDelete,
+  onReorderGuest,
+  onSelectGuest,
+  onSplitGuest,
+  existingDeskNumbers,
 }: EditGuestDialogProps) {
   const [description, setDescription] = useState('');
   const [isAttended, setIsAttended] = useState<boolean | null>(null);
+  const [deskNo, setDeskNo] = useState(1);
+  const [personCount, setPersonCount] = useState(1);
+  const [giftCount, setGiftCount] = useState(1);
   const [isSaving, setIsSaving] = useState(false);
-  const [showTablePreview, setShowTablePreview] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isSplitting, setIsSplitting] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showSplitConfirm, setShowSplitConfirm] = useState(false);
 
   useEffect(() => {
     if (guest) {
       setDescription(guest.description || '');
       setIsAttended(guest.is_attended);
-      setShowTablePreview(false); // Reset on new guest
+      setDeskNo(guest.desk_no);
+      setPersonCount(guest.person_count);
+      setGiftCount(guest.gift_count);
+      setShowDeleteConfirm(false);
+      setShowSplitConfirm(false);
     }
   }, [guest]);
 
@@ -57,7 +88,14 @@ export function EditGuestDialog({
     if (!guest) return;
     setIsSaving(true);
     try {
-      await onSave(guest.id, description, isAttended);
+      await onSave(
+        guest.id,
+        description,
+        isAttended,
+        deskNo,
+        personCount,
+        giftCount,
+      );
       onOpenChange(false);
     } catch (error) {
       console.error('Failed to save:', error);
@@ -66,9 +104,71 @@ export function EditGuestDialog({
     }
   };
 
+  const handleDelete = async () => {
+    if (!guest || !onDelete) return;
+    setIsDeleting(true);
+    try {
+      await onDelete(guest.id);
+      onOpenChange(false);
+    } catch (error) {
+      console.error('Failed to delete:', error);
+    } finally {
+      setIsDeleting(false);
+      setShowDeleteConfirm(false);
+    }
+  };
+
+  const handleSplit = async () => {
+    if (!guest || !onSplitGuest || guest.person_count <= 1) return;
+    setIsSplitting(true);
+    try {
+      await onSplitGuest(guest);
+      onOpenChange(false);
+    } catch (error) {
+      console.error('Failed to split:', error);
+    } finally {
+      setIsSplitting(false);
+      setShowSplitConfirm(false);
+    }
+  };
+
   const handleClearNote = () => {
     setDescription('');
   };
+
+  // Handle clicking on a tablemate badge - save current and switch
+  const handleTablemateClick = async (tablemate: Guest) => {
+    if (!guest || tablemate.id === guest.id) return;
+
+    // Save current guest first
+    setIsSaving(true);
+    try {
+      await onSave(
+        guest.id,
+        description,
+        isAttended,
+        deskNo,
+        personCount,
+        giftCount,
+      );
+      // Then switch to the new guest
+      if (onSelectGuest) {
+        onSelectGuest(tablemate);
+      }
+    } catch (error) {
+      console.error('Failed to save before switching:', error);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Get current guest index in tablemates for reordering
+  const currentIndex = tablemates.findIndex((g) => g.id === guest?.id);
+  const canMoveUp = currentIndex > 0;
+  const canMoveDown = currentIndex < tablemates.length - 1;
+
+  // Check if guest can be split (has multiple persons)
+  const canSplit = guest && guest.person_count > 1;
 
   if (!guest) return null;
 
@@ -85,40 +185,208 @@ export function EditGuestDialog({
         </DialogHeader>
 
         <div className="space-y-4 py-3">
-          {/* Guest Info */}
-          <div className="flex items-center gap-2 text-sm text-slate-600">
-            <button
-              onClick={() => setShowTablePreview(!showTablePreview)}
-              className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-md transition-colors ${showTablePreview
-                ? 'bg-indigo-500 text-white'
-                : 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100'
-                }`}
-            >
-              <Table weight="bold" className="w-3.5 h-3.5" />
-              Masa {guest.desk_no}
-            </button>
-            <span className="inline-flex items-center gap-1.5 px-2 py-1 bg-violet-50 text-violet-700 rounded-md">
-              <Users weight="bold" className="w-3.5 h-3.5" />
-              {guest.person_count}
-            </span>
-            <span className="inline-flex items-center gap-1.5 px-2 py-1 bg-amber-50 text-amber-700 rounded-md">
-              <Gift weight="bold" className="w-3.5 h-3.5" />
-              {guest.gift_count}
-            </span>
+          {/* Tablemates Badges */}
+          {tablemates.length > 1 && (
+            <div>
+              <label className="text-xs font-medium text-slate-500 mb-2 block">
+                Masa Arkadaşları
+              </label>
+              <div className="flex flex-wrap gap-1.5">
+                {tablemates.map((tablemate) => (
+                  <button
+                    key={tablemate.id}
+                    onClick={() => handleTablemateClick(tablemate)}
+                    disabled={isSaving}
+                    className={`px-2.5 py-1.5 rounded-full text-xs font-medium transition-all ${
+                      tablemate.id === guest.id
+                        ? 'bg-indigo-500 text-white'
+                        : tablemate.is_attended
+                          ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'
+                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    }`}
+                  >
+                    {tablemate.full_name.split(' ')[0]}
+                    {tablemate.person_count > 1 && (
+                      <span className="ml-1 opacity-70">
+                        +{tablemate.person_count - 1}
+                      </span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Guest Info & Desk Assignment */}
+          <div className="grid grid-cols-3 gap-2">
+            <div>
+              <label
+                htmlFor="deskSelect"
+                className="text-xs font-medium text-slate-500 mb-1 block"
+              >
+                Masa
+              </label>
+              <select
+                id="deskSelect"
+                value={deskNo}
+                onChange={(e) => setDeskNo(parseInt(e.target.value))}
+                className="w-full px-2 py-2 text-sm bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              >
+                {existingDeskNumbers.map((desk) => (
+                  <option key={desk} value={desk}>
+                    {desk}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label
+                htmlFor="personCountEdit"
+                className="text-xs font-medium text-slate-500 mb-1 block"
+              >
+                Kişi
+              </label>
+              <Input
+                id="personCountEdit"
+                type="number"
+                min={1}
+                max={20}
+                value={personCount}
+                onChange={(e) => setPersonCount(parseInt(e.target.value) || 1)}
+                className="h-9 text-sm bg-violet-50 text-violet-700 border-violet-200"
+              />
+            </div>
+            <div>
+              <label
+                htmlFor="giftCountEdit"
+                className="text-xs font-medium text-slate-500 mb-1 block"
+              >
+                Hediye
+              </label>
+              <Input
+                id="giftCountEdit"
+                type="number"
+                min={0}
+                max={20}
+                value={giftCount}
+                onChange={(e) => setGiftCount(parseInt(e.target.value) || 0)}
+                className="h-9 text-sm bg-amber-50 text-amber-700 border-amber-200"
+              />
+            </div>
           </div>
 
-          {/* Table Preview */}
+          {/* Reorder & Split Controls */}
+          <div className="flex items-center justify-between">
+            {/* Reorder */}
+            {onReorderGuest && tablemates.length > 1 && (
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-slate-500">Sıra:</span>
+                <button
+                  onClick={() => onReorderGuest(guest.id, guest.desk_no, 'up')}
+                  disabled={!canMoveUp}
+                  className={`p-1.5 rounded-md transition-colors ${
+                    canMoveUp
+                      ? 'bg-slate-100 hover:bg-slate-200 text-slate-600'
+                      : 'bg-slate-50 text-slate-300 cursor-not-allowed'
+                  }`}
+                  title="Yukarı Taşı"
+                >
+                  <ArrowUp weight="bold" className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() =>
+                    onReorderGuest(guest.id, guest.desk_no, 'down')
+                  }
+                  disabled={!canMoveDown}
+                  className={`p-1.5 rounded-md transition-colors ${
+                    canMoveDown
+                      ? 'bg-slate-100 hover:bg-slate-200 text-slate-600'
+                      : 'bg-slate-50 text-slate-300 cursor-not-allowed'
+                  }`}
+                  title="Aşağı Taşı"
+                >
+                  <ArrowDown weight="bold" className="w-4 h-4" />
+                </button>
+                <span className="text-xs text-slate-400">
+                  {currentIndex + 1}/{tablemates.length}
+                </span>
+              </div>
+            )}
 
+            {/* Split Guest Button */}
+            {canSplit && onSplitGuest && (
+              <button
+                onClick={() => setShowSplitConfirm(true)}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-violet-600 bg-violet-50 hover:bg-violet-100 rounded-lg transition-colors"
+              >
+                <Scissors weight="bold" className="w-3.5 h-3.5" />
+                Ayır ({personCount} kişi)
+              </button>
+            )}
+          </div>
+
+          {/* Split Confirmation */}
+          {showSplitConfirm && (
+            <div className="bg-violet-50 rounded-lg p-3 space-y-2">
+              <div className="flex items-start gap-2">
+                <Users
+                  weight="bold"
+                  className="w-5 h-5 text-violet-600 mt-0.5"
+                />
+                <div>
+                  <p className="text-sm font-medium text-violet-800">
+                    Davetiyeyi {personCount} kişiye ayır?
+                  </p>
+                  <p className="text-xs text-violet-600 mt-1">
+                    Her kişi için ayrı davetiye oluşturulacak ve aynı masaya
+                    oturtulacak.
+                  </p>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant="ghost"
+                  className="flex-1 text-slate-600"
+                  onClick={() => setShowSplitConfirm(false)}
+                  disabled={isSplitting}
+                >
+                  İptal
+                </Button>
+                <Button
+                  className="flex-1 bg-violet-600 hover:bg-violet-700 text-white"
+                  onClick={handleSplit}
+                  disabled={isSplitting}
+                >
+                  {isSplitting ? (
+                    <SpinnerGap
+                      weight="bold"
+                      className="w-4 h-4 animate-spin"
+                    />
+                  ) : (
+                    <>
+                      <Scissors weight="bold" className="w-4 h-4 mr-1.5" />
+                      Ayır
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Table Preview */}
           <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
             <MiniTablePreview
-              deskNo={guest.desk_no}
-              guests={tablemates}
+              deskNo={deskNo}
+              guests={
+                deskNo === guest.desk_no
+                  ? tablemates
+                  : allGuests.filter((g) => g.desk_no === deskNo)
+              }
               highlightGuestId={guest.id}
             />
           </div>
 
-
-          {/* Attendance Toggle - Simple */}
+          {/* Attendance Toggle */}
           <div>
             <label className="text-sm font-medium text-slate-700 mb-2 block">
               Katılım
@@ -127,10 +395,11 @@ export function EditGuestDialog({
               <button
                 type="button"
                 onClick={() => setIsAttended(true)}
-                className={`flex-1 py-2.5 rounded-lg font-medium text-sm transition-all flex items-center justify-center gap-2 ${isAttended === true
-                  ? 'bg-emerald-500 text-white'
-                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                  }`}
+                className={`flex-1 py-2.5 rounded-lg font-medium text-sm transition-all flex items-center justify-center gap-2 ${
+                  isAttended === true
+                    ? 'bg-emerald-500 text-white'
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                }`}
               >
                 <Check weight="bold" className="w-4 h-4" />
                 Geldi
@@ -138,10 +407,11 @@ export function EditGuestDialog({
               <button
                 type="button"
                 onClick={() => setIsAttended(null)}
-                className={`flex-1 py-2.5 rounded-lg font-medium text-sm transition-all ${isAttended === null || isAttended === false
-                  ? 'bg-slate-200 text-slate-700'
-                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                  }`}
+                className={`flex-1 py-2.5 rounded-lg font-medium text-sm transition-all ${
+                  isAttended === null || isAttended === false
+                    ? 'bg-slate-200 text-slate-700'
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                }`}
               >
                 Bekliyor
               </button>
@@ -176,6 +446,52 @@ export function EditGuestDialog({
               className="min-h-[80px] resize-none bg-slate-50 border-slate-200 text-slate-800 placeholder:text-slate-400 focus:border-indigo-300"
             />
           </div>
+
+          {/* Delete Section */}
+          {onDelete && !showSplitConfirm && (
+            <div className="pt-2 border-t border-slate-100">
+              {!showDeleteConfirm ? (
+                <button
+                  type="button"
+                  onClick={() => setShowDeleteConfirm(true)}
+                  className="w-full py-2 text-sm text-rose-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors flex items-center justify-center gap-2"
+                >
+                  <Trash weight="bold" className="w-4 h-4" />
+                  Misafiri Sil
+                </button>
+              ) : (
+                <div className="bg-rose-50 rounded-lg p-3 space-y-2">
+                  <p className="text-sm text-rose-700 text-center">
+                    "{guest.full_name}" silinecek. Emin misiniz?
+                  </p>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="ghost"
+                      className="flex-1 text-slate-600"
+                      onClick={() => setShowDeleteConfirm(false)}
+                      disabled={isDeleting}
+                    >
+                      İptal
+                    </Button>
+                    <Button
+                      className="flex-1 bg-rose-600 hover:bg-rose-700 text-white"
+                      onClick={handleDelete}
+                      disabled={isDeleting}
+                    >
+                      {isDeleting ? (
+                        <SpinnerGap
+                          weight="bold"
+                          className="w-4 h-4 animate-spin"
+                        />
+                      ) : (
+                        'Evet, Sil'
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         <DialogFooter className="gap-2">
