@@ -18,10 +18,12 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { MiniTablePreview } from '@/components/floorplan/MiniTablePreview';
 import type { Guest } from '@/lib/supabase';
 
 interface EditGuestDialogProps {
   guest: Guest | null;
+  tablemates: Guest[];
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSave: (
@@ -33,6 +35,7 @@ interface EditGuestDialogProps {
 
 export function EditGuestDialog({
   guest,
+  tablemates,
   open,
   onOpenChange,
   onSave,
@@ -40,11 +43,13 @@ export function EditGuestDialog({
   const [description, setDescription] = useState('');
   const [isAttended, setIsAttended] = useState<boolean | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [showTablePreview, setShowTablePreview] = useState(false);
 
   useEffect(() => {
     if (guest) {
       setDescription(guest.description || '');
       setIsAttended(guest.is_attended);
+      setShowTablePreview(false); // Reset on new guest
     }
   }, [guest]);
 
@@ -69,7 +74,7 @@ export function EditGuestDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md bg-white border-slate-200">
+      <DialogContent className="sm:max-w-md bg-white border-slate-200 max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-lg font-semibold text-slate-800">
             {guest.full_name}
@@ -82,10 +87,16 @@ export function EditGuestDialog({
         <div className="space-y-4 py-3">
           {/* Guest Info */}
           <div className="flex items-center gap-2 text-sm text-slate-600">
-            <span className="inline-flex items-center gap-1.5 px-2 py-1 bg-indigo-50 text-indigo-700 rounded-md">
+            <button
+              onClick={() => setShowTablePreview(!showTablePreview)}
+              className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-md transition-colors ${showTablePreview
+                ? 'bg-indigo-500 text-white'
+                : 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100'
+                }`}
+            >
               <Table weight="bold" className="w-3.5 h-3.5" />
               Masa {guest.desk_no}
-            </span>
+            </button>
             <span className="inline-flex items-center gap-1.5 px-2 py-1 bg-violet-50 text-violet-700 rounded-md">
               <Users weight="bold" className="w-3.5 h-3.5" />
               {guest.person_count}
@@ -96,6 +107,17 @@ export function EditGuestDialog({
             </span>
           </div>
 
+          {/* Table Preview */}
+
+          <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
+            <MiniTablePreview
+              deskNo={guest.desk_no}
+              guests={tablemates}
+              highlightGuestId={guest.id}
+            />
+          </div>
+
+
           {/* Attendance Toggle - Simple */}
           <div>
             <label className="text-sm font-medium text-slate-700 mb-2 block">
@@ -105,11 +127,10 @@ export function EditGuestDialog({
               <button
                 type="button"
                 onClick={() => setIsAttended(true)}
-                className={`flex-1 py-2.5 rounded-lg font-medium text-sm transition-all flex items-center justify-center gap-2 ${
-                  isAttended === true
-                    ? 'bg-emerald-500 text-white'
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                }`}
+                className={`flex-1 py-2.5 rounded-lg font-medium text-sm transition-all flex items-center justify-center gap-2 ${isAttended === true
+                  ? 'bg-emerald-500 text-white'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  }`}
               >
                 <Check weight="bold" className="w-4 h-4" />
                 Geldi
@@ -117,11 +138,10 @@ export function EditGuestDialog({
               <button
                 type="button"
                 onClick={() => setIsAttended(null)}
-                className={`flex-1 py-2.5 rounded-lg font-medium text-sm transition-all ${
-                  isAttended === null || isAttended === false
-                    ? 'bg-slate-200 text-slate-700'
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                }`}
+                className={`flex-1 py-2.5 rounded-lg font-medium text-sm transition-all ${isAttended === null || isAttended === false
+                  ? 'bg-slate-200 text-slate-700'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  }`}
               >
                 Bekliyor
               </button>

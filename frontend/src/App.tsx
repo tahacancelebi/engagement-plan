@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
   MagnifyingGlass,
   SpinnerGap,
@@ -14,6 +14,7 @@ import {
   ArrowsInSimple,
   WifiSlash,
   X,
+  MapPin,
 } from '@phosphor-icons/react';
 import {
   supabase,
@@ -27,12 +28,14 @@ import { turkishIncludes } from '@/lib/utils';
 import { DeskGroup } from '@/components/DeskGroup';
 import { EditGuestDialog } from '@/components/EditGuestDialog';
 import { StatsBar } from '@/components/StatsBar';
+import { FloorPlan, type FloorPlanRef } from '@/components/floorplan';
+import { useTablePositions } from '@/hooks/useTablePositions';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import guestsData from '../db.json';
 import './App.css';
 
-type ViewMode = 'card' | 'table';
+type ViewMode = 'card' | 'table' | 'map';
 type FilterMode = 'all' | 'attended' | 'pending' | 'has_notes';
 
 function App() {
@@ -46,6 +49,7 @@ function App() {
   const [viewMode, setViewMode] = useState<ViewMode>('card');
   const [filterMode, setFilterMode] = useState<FilterMode>('all');
   const [expandedDesks, setExpandedDesks] = useState<Set<number>>(new Set());
+  const floorPlanRef = useRef<FloorPlanRef>(null);
 
   // Fetch guests from Supabase or fallback to db.json
   const fetchGuests = async () => {
@@ -118,6 +122,31 @@ function App() {
       hasNotesCount,
     };
   }, [guests]);
+
+  // Get unique desk numbers for table positions
+  const deskNumbers = useMemo(
+    () => Array.from(new Set(guests.map((g) => g.desk_no))).sort((a, b) => a - b),
+    [guests]
+  );
+
+  // Table positions for floor plan
+  const { positions: tablePositions, updatePosition, resetPositions } = useTablePositions(deskNumbers);
+
+  // Find ALL highlighted desks based on search query
+  const highlightedDeskNos = useMemo(() => {
+    if (!searchQuery.trim() || viewMode !== 'map') return [];
+
+    const matchingDesks = new Set<number>();
+    guests.forEach((g) => {
+      if (
+        turkishIncludes(g.full_name, searchQuery) ||
+        (g.description && turkishIncludes(g.description, searchQuery))
+      ) {
+        matchingDesks.add(g.desk_no);
+      }
+    });
+    return Array.from(matchingDesks);
+  }, [searchQuery, guests, viewMode]);
 
   // Filter guests based on search query and filter mode
   const filteredGuests = useMemo(() => {
@@ -314,23 +343,33 @@ function App() {
               <div className="flex items-center rounded-lg border border-slate-200 bg-slate-50 p-0.5 gap-0.5">
                 <button
                   onClick={() => setViewMode('card')}
-                  className={`p-1.5 rounded-md transition-all ${
-                    viewMode === 'card'
-                      ? 'bg-white text-indigo-600 shadow-sm'
-                      : 'text-slate-400 hover:text-slate-600'
-                  }`}
+                  className={`p-1.5 rounded-md transition-all ${viewMode === 'card'
+                    ? 'bg-white text-indigo-600 shadow-sm'
+                    : 'text-slate-400 hover:text-slate-600'
+                    }`}
+                  title="Kart Görünümü"
                 >
                   <SquaresFour weight="bold" className="w-4 h-4" />
                 </button>
                 <button
                   onClick={() => setViewMode('table')}
-                  className={`p-1.5 rounded-md transition-all ${
-                    viewMode === 'table'
-                      ? 'bg-white text-indigo-600 shadow-sm'
-                      : 'text-slate-400 hover:text-slate-600'
-                  }`}
+                  className={`p-1.5 rounded-md transition-all ${viewMode === 'table'
+                    ? 'bg-white text-indigo-600 shadow-sm'
+                    : 'text-slate-400 hover:text-slate-600'
+                    }`}
+                  title="Tablo Görünümü"
                 >
                   <Rows weight="bold" className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => setViewMode('map')}
+                  className={`p-1.5 rounded-md transition-all ${viewMode === 'map'
+                    ? 'bg-white text-indigo-600 shadow-sm'
+                    : 'text-slate-400 hover:text-slate-600'
+                    }`}
+                  title="Harita Görünümü"
+                >
+                  <MapPin weight="bold" className="w-4 h-4" />
                 </button>
               </div>
             </div>
@@ -368,126 +407,141 @@ function App() {
           </div>
         ) : (
           <>
-            {/* Stats Bar - Hide when searching */}
-            {!searchQuery && <StatsBar {...stats} />}
+            {/* Stats Bar - Hide when searching or in map view */}
+            {!searchQuery && viewMode !== 'map' && <StatsBar {...stats} />}
 
-            {/* Filter & Actions Bar - Hide when searching */}
-            {!searchQuery && (
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                {/* Filter Tabs */}
-                <div className="flex items-center gap-0.5 p-0.5 bg-slate-100 rounded-lg text-xs">
-                  <button
-                    onClick={() => setFilterMode('all')}
-                    className={`px-2.5 py-1.5 rounded-md font-medium transition-all ${
-                      filterMode === 'all'
-                        ? 'bg-white text-slate-800 shadow-sm'
-                        : 'text-slate-500'
-                    }`}
-                  >
-                    Tümü
-                  </button>
-                  <button
-                    onClick={() => setFilterMode('attended')}
-                    className={`px-2.5 py-1.5 rounded-md font-medium transition-all flex items-center gap-1 ${
-                      filterMode === 'attended'
-                        ? 'bg-white text-emerald-600 shadow-sm'
-                        : 'text-slate-500'
-                    }`}
-                  >
-                    <Check weight="bold" className="w-3 h-3" />
-                    Geldi
-                  </button>
-                  <button
-                    onClick={() => setFilterMode('pending')}
-                    className={`px-2.5 py-1.5 rounded-md font-medium transition-all flex items-center gap-1 ${
-                      filterMode === 'pending'
-                        ? 'bg-white text-slate-600 shadow-sm'
-                        : 'text-slate-500'
-                    }`}
-                  >
-                    <Circle weight="bold" className="w-3 h-3" />
-                    Bekleyen
-                  </button>
-                  <button
-                    onClick={() => setFilterMode('has_notes')}
-                    className={`px-2.5 py-1.5 rounded-md font-medium transition-all flex items-center gap-1 ${
-                      filterMode === 'has_notes'
-                        ? 'bg-white text-orange-600 shadow-sm'
-                        : 'text-slate-500'
-                    }`}
-                  >
-                    <NotePencil weight="bold" className="w-3 h-3" />
-                    Notlu
-                  </button>
-                </div>
-
-                {/* Quick Actions */}
-                <div className="flex items-center gap-1">
-                  <button
-                    onClick={expandAll}
-                    className="px-2 py-1.5 rounded-md text-xs font-medium text-slate-500 hover:text-slate-700 hover:bg-slate-100 flex items-center gap-1 transition-colors"
-                  >
-                    <ArrowsOutSimple weight="bold" className="w-3.5 h-3.5" />
-                    Tümünü Aç
-                  </button>
-                  <button
-                    onClick={collapseAll}
-                    className="px-2 py-1.5 rounded-md text-xs font-medium text-slate-500 hover:text-slate-700 hover:bg-slate-100 flex items-center gap-1 transition-colors"
-                  >
-                    <ArrowsInSimple weight="bold" className="w-3.5 h-3.5" />
-                    Tümünü Kapat
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* Result Count - Hide when searching to keep it clean */}
-            {!searchQuery && (searchQuery || filterMode !== 'all') && (
-              <p className="text-xs text-slate-500">
-                <span className="font-medium text-slate-700">
-                  {filteredGuests.length}
-                </span>{' '}
-                sonuç
-              </p>
-            )}
-
-            {/* Guest Groups by Desk */}
-            {groupedByDesk.length === 0 ? (
-              <div className="bg-white rounded-xl border border-slate-100 p-12">
-                <div className="flex flex-col items-center justify-center text-center">
-                  <div className="p-3 rounded-xl bg-slate-100 mb-3">
-                    <FunnelSimple
-                      weight="duotone"
-                      className="w-8 h-8 text-slate-400"
-                    />
-                  </div>
-                  <h3 className="font-medium text-slate-700 mb-1">
-                    {searchQuery || filterMode !== 'all'
-                      ? 'Sonuç Yok'
-                      : 'Misafir Yok'}
-                  </h3>
-                  <p className="text-sm text-slate-500">
-                    {searchQuery || filterMode !== 'all'
-                      ? 'Filtreleri değiştirin'
-                      : 'Liste boş'}
-                  </p>
-                </div>
-              </div>
+            {/* Map View */}
+            {viewMode === 'map' ? (
+              <FloorPlan
+                ref={floorPlanRef}
+                guests={guests}
+                tablePositions={tablePositions}
+                onPositionChange={updatePosition}
+                onResetPositions={resetPositions}
+                highlightedDeskNos={highlightedDeskNos}
+                onToggleAttendance={handleToggleAttendance}
+                onGuestClick={(guest: Guest) => {
+                  setSelectedGuest(guest);
+                  setDialogOpen(true);
+                }}
+              />
             ) : (
-              <div className="space-y-3">
-                {groupedByDesk.map(([deskNo, deskGuests]) => (
-                  <DeskGroup
-                    key={deskNo}
-                    deskNo={deskNo}
-                    guests={deskGuests}
-                    onGuestClick={handleGuestClick}
-                    onToggleAttendance={handleToggleAttendance}
-                    viewMode={viewMode}
-                    isExpanded={expandedDesks.has(deskNo)}
-                    onToggleExpand={() => toggleDesk(deskNo)}
-                  />
-                ))}
-              </div>
+              <>
+                {/* Filter & Actions Bar - Hide when searching */}
+                {!searchQuery && (
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    {/* Filter Tabs */}
+                    <div className="flex items-center gap-0.5 p-0.5 bg-slate-100 rounded-lg text-xs">
+                      <button
+                        onClick={() => setFilterMode('all')}
+                        className={`px-2.5 py-1.5 rounded-md font-medium transition-all ${filterMode === 'all'
+                          ? 'bg-white text-slate-800 shadow-sm'
+                          : 'text-slate-500'
+                          }`}
+                      >
+                        Tümü
+                      </button>
+                      <button
+                        onClick={() => setFilterMode('attended')}
+                        className={`px-2.5 py-1.5 rounded-md font-medium transition-all flex items-center gap-1 ${filterMode === 'attended'
+                          ? 'bg-white text-emerald-600 shadow-sm'
+                          : 'text-slate-500'
+                          }`}
+                      >
+                        <Check weight="bold" className="w-3 h-3" />
+                        Geldi
+                      </button>
+                      <button
+                        onClick={() => setFilterMode('pending')}
+                        className={`px-2.5 py-1.5 rounded-md font-medium transition-all flex items-center gap-1 ${filterMode === 'pending'
+                          ? 'bg-white text-slate-600 shadow-sm'
+                          : 'text-slate-500'
+                          }`}
+                      >
+                        <Circle weight="bold" className="w-3 h-3" />
+                        Bekleyen
+                      </button>
+                      <button
+                        onClick={() => setFilterMode('has_notes')}
+                        className={`px-2.5 py-1.5 rounded-md font-medium transition-all flex items-center gap-1 ${filterMode === 'has_notes'
+                          ? 'bg-white text-orange-600 shadow-sm'
+                          : 'text-slate-500'
+                          }`}
+                      >
+                        <NotePencil weight="bold" className="w-3 h-3" />
+                        Notlu
+                      </button>
+                    </div>
+
+                    {/* Quick Actions */}
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={expandAll}
+                        className="px-2 py-1.5 rounded-md text-xs font-medium text-slate-500 hover:text-slate-700 hover:bg-slate-100 flex items-center gap-1 transition-colors"
+                      >
+                        <ArrowsOutSimple weight="bold" className="w-3.5 h-3.5" />
+                        Tümünü Aç
+                      </button>
+                      <button
+                        onClick={collapseAll}
+                        className="px-2 py-1.5 rounded-md text-xs font-medium text-slate-500 hover:text-slate-700 hover:bg-slate-100 flex items-center gap-1 transition-colors"
+                      >
+                        <ArrowsInSimple weight="bold" className="w-3.5 h-3.5" />
+                        Tümünü Kapat
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Result Count - Hide when searching to keep it clean */}
+                {!searchQuery && (searchQuery || filterMode !== 'all') && (
+                  <p className="text-xs text-slate-500">
+                    <span className="font-medium text-slate-700">
+                      {filteredGuests.length}
+                    </span>{' '}
+                    sonuç
+                  </p>
+                )}
+
+                {/* Guest Groups by Desk */}
+                {groupedByDesk.length === 0 ? (
+                  <div className="bg-white rounded-xl border border-slate-100 p-12">
+                    <div className="flex flex-col items-center justify-center text-center">
+                      <div className="p-3 rounded-xl bg-slate-100 mb-3">
+                        <FunnelSimple
+                          weight="duotone"
+                          className="w-8 h-8 text-slate-400"
+                        />
+                      </div>
+                      <h3 className="font-medium text-slate-700 mb-1">
+                        {searchQuery || filterMode !== 'all'
+                          ? 'Sonuç Yok'
+                          : 'Misafir Yok'}
+                      </h3>
+                      <p className="text-sm text-slate-500">
+                        {searchQuery || filterMode !== 'all'
+                          ? 'Filtreleri değiştirin'
+                          : 'Liste boş'}
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {groupedByDesk.map(([deskNo, deskGuests]) => (
+                      <DeskGroup
+                        key={deskNo}
+                        deskNo={deskNo}
+                        guests={deskGuests}
+                        onGuestClick={handleGuestClick}
+                        onToggleAttendance={handleToggleAttendance}
+                        viewMode={viewMode as 'card' | 'table'}
+                        isExpanded={expandedDesks.has(deskNo)}
+                        onToggleExpand={() => toggleDesk(deskNo)}
+                      />
+                    ))}
+                  </div>
+                )}
+              </>
             )}
           </>
         )}
@@ -496,6 +550,7 @@ function App() {
       {/* Edit Dialog */}
       <EditGuestDialog
         guest={selectedGuest}
+        tablemates={selectedGuest ? guests.filter((g) => g.desk_no === selectedGuest.desk_no) : []}
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         onSave={handleSaveDescription}

@@ -1,0 +1,277 @@
+import {
+    forwardRef,
+    useImperativeHandle,
+    useRef,
+    useMemo,
+    useCallback,
+    useState,
+} from 'react';
+import {
+    TransformWrapper,
+    TransformComponent,
+    type ReactZoomPanPinchRef,
+} from 'react-zoom-pan-pinch';
+import {
+    MagnifyingGlassPlus,
+    MagnifyingGlassMinus,
+    ArrowsOut,
+    LockSimple,
+    LockSimpleOpen,
+    ArrowCounterClockwise,
+} from '@phosphor-icons/react';
+import { Table } from './Table';
+import { TableInfoDialog } from './TableInfoDialog';
+import type { Guest } from '@/lib/supabase';
+
+interface TablePosition {
+    x: number;
+    y: number;
+}
+
+interface FloorPlanProps {
+    guests: Guest[];
+    tablePositions: Record<number, TablePosition>;
+    onPositionChange: (deskNo: number, position: TablePosition) => void;
+    onResetPositions: () => void;
+    highlightedDeskNos: number[];
+    onToggleAttendance: (guest: Guest) => void;
+    onGuestClick: (guest: Guest) => void;
+}
+
+export interface FloorPlanRef {
+    focusOnTable: (deskNo: number) => void;
+    resetView: () => void;
+}
+
+export const FloorPlan = forwardRef<FloorPlanRef, FloorPlanProps>(
+    (
+        {
+            guests,
+            tablePositions,
+            onPositionChange,
+            onResetPositions,
+            highlightedDeskNos,
+            onToggleAttendance,
+            onGuestClick,
+        },
+        ref
+    ) => {
+        const transformRef = useRef<ReactZoomPanPinchRef>(null);
+        const [isEditMode, setIsEditMode] = useState(false);
+        const [selectedTableNo, setSelectedTableNo] = useState<number | null>(null);
+
+        // Group guests by desk
+        const guestsByDesk = useMemo(() => {
+            const groups = new Map<number, Guest[]>();
+            guests.forEach((guest) => {
+                const existing = groups.get(guest.desk_no) || [];
+                groups.set(guest.desk_no, [...existing, guest]);
+            });
+            return groups;
+        }, [guests]);
+
+        // Get all unique desk numbers
+        const deskNumbers = useMemo(
+            () => Array.from(guestsByDesk.keys()).sort((a, b) => a - b),
+            [guestsByDesk]
+        );
+
+        // Focus on a specific table
+        const focusOnTable = useCallback(
+            (deskNo: number) => {
+                const position = tablePositions[deskNo];
+                if (position && transformRef.current) {
+                    const { setTransform } = transformRef.current;
+                    const containerWidth = window.innerWidth;
+                    const containerHeight = window.innerHeight - 200;
+                    const scale = 1.2;
+                    const x = containerWidth / 2 - position.x * scale;
+                    const y = containerHeight / 2 - position.y * scale;
+                    setTransform(x, y, scale, 500);
+                }
+            },
+            [tablePositions]
+        );
+
+        const resetView = useCallback(() => {
+            if (transformRef.current) {
+                transformRef.current.resetTransform(300);
+            }
+        }, []);
+
+        // Expose methods via ref
+        useImperativeHandle(
+            ref,
+            () => ({
+                focusOnTable,
+                resetView,
+            }),
+            [focusOnTable, resetView]
+        );
+
+        // Calculate canvas size based on table positions
+        const canvasSize = useMemo(() => {
+            const positions = Object.values(tablePositions);
+            if (positions.length === 0) return { width: 1200, height: 800 };
+
+            const maxX = Math.max(...positions.map((p) => p.x)) + 200;
+            const maxY = Math.max(...positions.map((p) => p.y)) + 200;
+
+            return {
+                width: Math.max(1200, maxX),
+                height: Math.max(800, maxY),
+            };
+        }, [tablePositions]);
+
+        const handleTableClick = (deskNo: number) => {
+            if (!isEditMode) {
+                setSelectedTableNo(deskNo);
+            }
+        };
+
+        const selectedTableGuests = selectedTableNo
+            ? guestsByDesk.get(selectedTableNo) || []
+            : [];
+
+        return (
+            <div className="relative w-full h-[calc(100vh-180px)] bg-slate-100 rounded-xl border border-slate-200 overflow-hidden">
+                {/* Control buttons */}
+                <div className="absolute top-3 right-3 z-20 flex flex-col gap-1.5">
+                    {/* Edit Mode Toggle */}
+                    <button
+                        onClick={() => setIsEditMode(!isEditMode)}
+                        className={`p-2 rounded-lg shadow-sm border transition-colors ${isEditMode
+                            ? 'bg-rose-500 border-rose-600 text-white hover:bg-rose-600'
+                            : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                            }`}
+                        title={isEditMode ? 'Düzenleme Modunu Kapat' : 'Düzenleme Modunu Aç'}
+                    >
+                        {isEditMode ? (
+                            <LockSimpleOpen weight="bold" className="w-5 h-5" />
+                        ) : (
+                            <LockSimple weight="bold" className="w-5 h-5" />
+                        )}
+                    </button>
+
+                    <div className="w-full h-px bg-slate-200 my-0.5" />
+
+                    <button
+                        onClick={() => transformRef.current?.zoomIn(0.3)}
+                        className="p-2 bg-white rounded-lg shadow-sm border border-slate-200 hover:bg-slate-50 transition-colors"
+                        title="Yakınlaştır"
+                    >
+                        <MagnifyingGlassPlus weight="bold" className="w-5 h-5 text-slate-600" />
+                    </button>
+                    <button
+                        onClick={() => transformRef.current?.zoomOut(0.3)}
+                        className="p-2 bg-white rounded-lg shadow-sm border border-slate-200 hover:bg-slate-50 transition-colors"
+                        title="Uzaklaştır"
+                    >
+                        <MagnifyingGlassMinus weight="bold" className="w-5 h-5 text-slate-600" />
+                    </button>
+                    <button
+                        onClick={resetView}
+                        className="p-2 bg-white rounded-lg shadow-sm border border-slate-200 hover:bg-slate-50 transition-colors"
+                        title="Görünümü Sıfırla"
+                    >
+                        <ArrowsOut weight="bold" className="w-5 h-5 text-slate-600" />
+                    </button>
+
+                    {/* Reset Positions - Only in Edit Mode */}
+                    {isEditMode && (
+                        <button
+                            onClick={onResetPositions}
+                            className="p-2 bg-amber-500 rounded-lg shadow-sm hover:bg-amber-600 transition-colors"
+                            title="Masa Pozisyonlarını Sıfırla"
+                        >
+                            <ArrowCounterClockwise weight="bold" className="w-5 h-5 text-white" />
+                        </button>
+                    )}
+                </div>
+
+                {/* Legend */}
+                <div className="absolute bottom-3 left-3 z-20 flex items-center gap-4 px-3 py-2 bg-white/90 backdrop-blur-sm rounded-lg shadow-sm border border-slate-200 text-xs">
+                    <div className="flex items-center gap-1.5">
+                        <div className="w-4 h-4 rounded-full bg-emerald-500 border-2 border-emerald-600" />
+                        <span className="text-slate-600">Geldi</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                        <div className="w-4 h-4 rounded-full bg-slate-200 border-2 border-slate-300" />
+                        <span className="text-slate-600">Bekliyor</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                        <div className="w-4 h-4 rounded-full bg-amber-100 border-2 border-amber-300" />
+                        <span className="text-slate-600">Masa</span>
+                    </div>
+                </div>
+
+                {/* Zoom/Pan Container */}
+                <TransformWrapper
+                    ref={transformRef}
+                    initialScale={0.7}
+                    minScale={0.3}
+                    maxScale={2}
+                    centerOnInit
+                    limitToBounds={false}
+                    panning={{ velocityDisabled: true, disabled: isEditMode }}
+                >
+                    <TransformComponent
+                        wrapperStyle={{ width: '100%', height: '100%' }}
+                        contentStyle={{
+                            width: canvasSize.width,
+                            height: canvasSize.height,
+                        }}
+                    >
+                        {/* Floor pattern background */}
+                        <div
+                            className="absolute inset-0"
+                            style={{
+                                backgroundImage: 'radial-gradient(circle, #e2e8f0 1px, transparent 1px)',
+                                backgroundSize: '24px 24px',
+                            }}
+                        />
+
+                        {/* Tables */}
+                        {deskNumbers.map((deskNo) => (
+                            <Table
+                                key={deskNo}
+                                deskNo={deskNo}
+                                guests={guestsByDesk.get(deskNo) || []}
+                                position={tablePositions[deskNo] || { x: 100, y: 100 }}
+                                onPositionChange={onPositionChange}
+                                isHighlighted={highlightedDeskNos.includes(deskNo)}
+                                isDragEnabled={isEditMode}
+                                onTableClick={handleTableClick}
+                            />
+                        ))}
+                    </TransformComponent>
+                </TransformWrapper>
+
+                {/* Instructions overlay */}
+                <div className="absolute top-3 left-3 z-20 px-3 py-1.5 bg-white/90 backdrop-blur-sm rounded-lg shadow-sm border border-slate-200 text-xs text-slate-500">
+                    {isEditMode ? (
+                        <span className="text-rose-600 font-medium">
+                            Düzenleme Modu: Masaları sürükleyin
+                        </span>
+                    ) : (
+                        <span>Masaya tıklayarak misafirleri görün</span>
+                    )}
+                </div>
+
+                {/* Table Info Dialog */}
+                <TableInfoDialog
+                    deskNo={selectedTableNo || 0}
+                    guests={selectedTableGuests}
+                    open={selectedTableNo !== null}
+                    onOpenChange={(open) => {
+                        if (!open) setSelectedTableNo(null);
+                    }}
+                    onToggleAttendance={onToggleAttendance}
+                    onGuestClick={onGuestClick}
+                />
+            </div>
+        );
+    }
+);
+
+FloorPlan.displayName = 'FloorPlan';
