@@ -1,0 +1,513 @@
+[
+  {
+    "fullName": "Ali Remzi BEDİZ",
+    "personCount": 1,
+    "deskNo": 1,
+    "giftCount": 1,
+    "description": null
+  },
+  {
+    "fullName": "Yasemin & Sami BEDİZ",
+    "personCount": 5,
+    "deskNo": 1,
+    "giftCount": 4,
+    "description": null
+  },
+  {
+    "fullName": "Berrin DİKİCİ",
+    "personCount": 1,
+    "deskNo": 1,
+    "giftCount": 1,
+    "description": null
+  },
+  {
+    "fullName": "Ayşe & Abdurrahman KAYHAN",
+    "personCount": 2,
+    "deskNo": 1,
+    "giftCount": 1,
+    "description": null
+  },
+  {
+    "fullName": "Ali BİTİM",
+    "personCount": 1,
+    "deskNo": 1,
+    "giftCount": 1,
+    "description": null
+  },
+  {
+    "fullName": "Hediye & Necati KAYHAN",
+    "personCount": 5,
+    "deskNo": 5,
+    "giftCount": 1,
+    "description": null
+  },
+  {
+    "fullName": "Şeyma & Mehmet Emin KAĞITCI",
+    "personCount": 4,
+    "deskNo": 5,
+    "giftCount": 1,
+    "description": null
+  },
+  {
+    "fullName": "Emine & Mehmet KÖKLÜ",
+    "personCount": 2,
+    "deskNo": 7,
+    "giftCount": 1,
+    "description": null
+  },
+  {
+    "fullName": "Nesibe & Tahsin BARAN",
+    "personCount": 2,
+    "deskNo": 2,
+    "giftCount": 1,
+    "description": null
+  },
+  {
+    "fullName": "Zeliha & Namık KAYHAN",
+    "personCount": 2,
+    "deskNo": 2,
+    "giftCount": 1,
+    "description": null
+  },
+  {
+    "fullName": "Saime & Ömer KAYHAN",
+    "personCount": 3,
+    "deskNo": 7,
+    "giftCount": 1,
+    "description": null
+  },
+  {
+    "fullName": "Elmas & Yusuf KAYHAN",
+    "personCount": 2,
+    "deskNo": 4,
+    "giftCount": 1,
+    "description": null
+  },
+  {
+    "fullName": "Tuğba & Mehmet KAYHAN",
+    "personCount": 2,
+    "deskNo": 4,
+    "giftCount": 1,
+    "description": null
+  },
+  {
+    "fullName": "Fatma KAĞITCI",
+    "personCount": 1,
+    "deskNo": 5,
+    "giftCount": 1,
+    "description": null
+  },
+  {
+    "fullName": "Hacer & Şuhayip KAYHAN",
+    "personCount": 2,
+    "deskNo": 2,
+    "giftCount": 1,
+    "description": null
+  },
+  {
+    "fullName": "Beyza & Muhammed Emin KAYHAN",
+    "personCount": 2,
+    "deskNo": 6,
+    "giftCount": 1,
+    "description": null
+  },
+  {
+    "fullName": "Büşra & Erkan ÖZCAN",
+    "personCount": 2,
+    "deskNo": 6,
+    "giftCount": 1,
+    "description": null
+  },
+  {
+    "fullName": "Furkan KAYHAN",
+    "personCount": 1,
+    "deskNo": 6,
+    "giftCount": 0,
+    "description": null
+  },
+  {
+    "fullName": "Saliha & Arif KAYHAN",
+    "personCount": 2,
+    "deskNo": 2,
+    "giftCount": 1,
+    "description": null
+  },
+  {
+    "fullName": "Ayşe & Yusuf Emre KAYHAN",
+    "personCount": 4,
+    "deskNo": 6,
+    "giftCount": 1,
+    "description": null
+  },
+  {
+    "fullName": "Ayşegül & Ahmet Cihan KAYHAN",
+    "personCount": 2,
+    "deskNo": 6,
+    "giftCount": 1,
+    "description": null
+  },
+  {
+    "fullName": "Ferdane & Süleyman KAYHAN",
+    "personCount": 4,
+    "deskNo": 7,
+    "giftCount": 1,
+    "description": null
+  },
+  {
+    "fullName": "Hediye & Mehmet İNANÇ",
+    "personCount": 2,
+    "deskNo": 3,
+    "giftCount": 1,
+    "description": null
+  },
+  {
+    "fullName": "Gizem & Ömer İNANÇ",
+    "personCount": 2,
+    "deskNo": 4,
+    "giftCount": 1,
+    "description": null
+  },
+  {
+    "fullName": "Şerife & Mustafa GÜLYAVŞAN",
+    "personCount": 2,
+    "deskNo": 2,
+    "giftCount": 1,
+    "description": null
+  },
+  {
+    "fullName": "Akife & Ahmet KIRAT",
+    "personCount": 4,
+    "deskNo": 4,
+    "giftCount": 1,
+    "description": null
+  },
+  {
+    "fullName": "Aliye KIRAT",
+    "personCount": 1,
+    "deskNo": 3,
+    "giftCount": 1,
+    "description": null
+  },
+  {
+    "fullName": "Şerife & Zekeriya KIRAT",
+    "personCount": 2,
+    "deskNo": 3,
+    "giftCount": 1,
+    "description": null
+  },
+  {
+    "fullName": "Amine & Mücahit KIRAT",
+    "personCount": 2,
+    "deskNo": 3,
+    "giftCount": 1,
+    "description": null
+  },
+  {
+    "fullName": "Gülsüm & Fatih KIRAT",
+    "personCount": 2,
+    "deskNo": 3,
+    "giftCount": 1,
+    "description": null
+  },
+  {
+    "fullName": "Ayşe ÖZ",
+    "personCount": 1,
+    "deskNo": 3,
+    "giftCount": 1,
+    "description": null
+  },
+  {
+    "fullName": "Özlem & Mustafa CİVELEK",
+    "personCount": 2,
+    "deskNo": 8,
+    "giftCount": 1,
+    "description": null
+  },
+  {
+    "fullName": "Havva & Barış DOĞRUKÖK",
+    "personCount": 2,
+    "deskNo": 8,
+    "giftCount": 1,
+    "description": null
+  },
+  {
+    "fullName": "Tahacan ÇELEBİ",
+    "personCount": 1,
+    "deskNo": 8,
+    "giftCount": 1,
+    "description": null
+  },
+  {
+    "fullName": "Bekir Emre DİPİ",
+    "personCount": 1,
+    "deskNo": 8,
+    "giftCount": 1,
+    "description": null
+  },
+  {
+    "fullName": "Fehmi OYDEMİR",
+    "personCount": 1,
+    "deskNo": 8,
+    "giftCount": 1,
+    "description": null
+  },
+  {
+    "fullName": "Muhammed Orkun YILMAZ",
+    "personCount": 1,
+    "deskNo": 8,
+    "giftCount": 1,
+    "description": null
+  },
+  {
+    "fullName": "Fatma & Muammer UYSAL",
+    "personCount": 2,
+    "deskNo": 9,
+    "giftCount": 1,
+    "description": null
+  },
+  {
+    "fullName": "Fatmagül & Menteş UYSAL",
+    "personCount": 4,
+    "deskNo": 9,
+    "giftCount": 1,
+    "description": null
+  },
+  {
+    "fullName": "Bedia & Gazi UYSAL",
+    "personCount": 4,
+    "deskNo": 9,
+    "giftCount": 1,
+    "description": null
+  },
+  {
+    "fullName": "Ayten & Servet ÖNAL",
+    "personCount": 4,
+    "deskNo": 10,
+    "giftCount": 1,
+    "description": null
+  },
+  {
+    "fullName": "Özlem & Şükrü DİKİCİ",
+    "personCount": 3,
+    "deskNo": 10,
+    "giftCount": 1,
+    "description": null
+  },
+  {
+    "fullName": "Ayşe & Fatih DİNÇOFLAZ",
+    "personCount": 3,
+    "deskNo": 10,
+    "giftCount": 1,
+    "description": null
+  },
+  {
+    "fullName": "İnci & Derviş KALIN",
+    "personCount": 4,
+    "deskNo": 11,
+    "giftCount": 2,
+    "description": null
+  },
+  {
+    "fullName": "Rabia & Erhan KARA",
+    "personCount": 4,
+    "deskNo": 11,
+    "giftCount": 3,
+    "description": null
+  },
+  {
+    "fullName": "Gülfer & Sinan KILIÇ",
+    "personCount": 3,
+    "deskNo": 12,
+    "giftCount": 1,
+    "description": null
+  },
+  {
+    "fullName": "Güler & Türker ŞENER",
+    "personCount": 2,
+    "deskNo": 12,
+    "giftCount": 1,
+    "description": null
+  },
+  {
+    "fullName": "Zuhal & Erhan KÜLCÜ",
+    "personCount": 3,
+    "deskNo": 18,
+    "giftCount": 2,
+    "description": null
+  },
+  {
+    "fullName": "Şule & Hüseyin AKSOY",
+    "personCount": 2,
+    "deskNo": 12,
+    "giftCount": 1,
+    "description": null
+  },
+  {
+    "fullName": "Gökçen & Metin ÇAPAR",
+    "personCount": 2,
+    "deskNo": 12,
+    "giftCount": 1,
+    "description": null
+  },
+  {
+    "fullName": "Rukiye & Tuğçe GÜLERYÜZ",
+    "personCount": 2,
+    "deskNo": 13,
+    "giftCount": 2,
+    "description": null
+  },
+  {
+    "fullName": "Ünzile DURAN",
+    "personCount": 1,
+    "deskNo": 13,
+    "giftCount": 1,
+    "description": null
+  },
+  {
+    "fullName": "Emine KILINÇ",
+    "personCount": 1,
+    "deskNo": 13,
+    "giftCount": 1,
+    "description": null
+  },
+  {
+    "fullName": "Şenay DEMİR",
+    "personCount": 1,
+    "deskNo": 13,
+    "giftCount": 1,
+    "description": null
+  },
+  {
+    "fullName": "Yasemin BAĞCI",
+    "personCount": 1,
+    "deskNo": 13,
+    "giftCount": 1,
+    "description": null
+  },
+  {
+    "fullName": "Vahide AKIN",
+    "personCount": 1,
+    "deskNo": 13,
+    "giftCount": 1,
+    "description": null
+  },
+  {
+    "fullName": "Nihal Hanım",
+    "personCount": 1,
+    "deskNo": 13,
+    "giftCount": 1,
+    "description": null
+  },
+  {
+    "fullName": "Ayşe YAVUZ",
+    "personCount": 1,
+    "deskNo": 13,
+    "giftCount": 1,
+    "description": null
+  },
+  {
+    "fullName": "İlçeli Ailesi",
+    "personCount": 3,
+    "deskNo": 14,
+    "giftCount": 2,
+    "description": null
+  },
+  {
+    "fullName": "Doyran Ailesi",
+    "personCount": 4,
+    "deskNo": 14,
+    "giftCount": 3,
+    "description": null
+  },
+  {
+    "fullName": "Beyza DURAN",
+    "personCount": 1,
+    "deskNo": 14,
+    "giftCount": 1,
+    "description": null
+  },
+  {
+    "fullName": "Korkmaz Ailesi",
+    "personCount": 5,
+    "deskNo": 15,
+    "giftCount": 1,
+    "description": null
+  },
+  {
+    "fullName": "Genç Ailesi",
+    "personCount": 4,
+    "deskNo": 15,
+    "giftCount": 1,
+    "description": null
+  },
+  {
+    "fullName": "Pınar & Güçlü KALIN",
+    "personCount": 2,
+    "deskNo": 16,
+    "giftCount": 1,
+    "description": null
+  },
+  {
+    "fullName": "Tuğçe & Kıvanç KALIN",
+    "personCount": 2,
+    "deskNo": 16,
+    "giftCount": 1,
+    "description": null
+  },
+  {
+    "fullName": "Betül & Maksut ATMACA",
+    "personCount": 2,
+    "deskNo": 16,
+    "giftCount": 1,
+    "description": null
+  },
+  {
+    "fullName": "Esra & Ali Rıza ODABAŞI",
+    "personCount": 2,
+    "deskNo": 16,
+    "giftCount": 1,
+    "description": null
+  },
+  {
+    "fullName": "Zahide & Ayşe ÇEREZCİ",
+    "personCount": 2,
+    "deskNo": 16,
+    "giftCount": 1,
+    "description": null
+  },
+  {
+    "fullName": "Elife & Ali FİDANCI",
+    "personCount": 5,
+    "deskNo": 17,
+    "giftCount": 4,
+    "description": null
+  },
+  {
+    "fullName": "İsmet & Ahmet AKAR",
+    "personCount": 2,
+    "deskNo": 17,
+    "giftCount": 1,
+    "description": null
+  },
+  {
+    "fullName": "Makbule & Fatih PINAR",
+    "personCount": 2,
+    "deskNo": 18,
+    "giftCount": 1,
+    "description": null
+  },
+  {
+    "fullName": "Merhuze & İshak ORHAN",
+    "personCount": 2,
+    "deskNo": 18,
+    "giftCount": 1,
+    "description": null
+  },
+  {
+    "fullName": "Yakup & Aysel ŞAFAK",
+    "personCount": 2,
+    "deskNo": 17,
+    "giftCount": 1,
+    "description": null
+  }
+]
